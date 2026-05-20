@@ -8,13 +8,6 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: Optimizar espacio en el servidor
-      uses: easimon/maximize-build-space@master
-      with:
-        root-reserve-mb: 10240
-        swap-size-mb: 10240
-        remove-dotnet: 'true'
-        remove-android: 'true'
-        remove-haskell: 'true'
 
     - name: Configurar Entorno de Compilación
       run: |
