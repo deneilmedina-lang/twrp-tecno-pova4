@@ -1,0 +1,63 @@
+name: Compilar TWRP Tecno Pova 4
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Optimizar espacio en el servidor
+      uses: easimon/maximize-build-space@master
+      with:
+        root-reserve-mb: 10240
+        swap-size-mb: 10240
+        remove-dotnet: 'true'
+        remove-android: 'true'
+        remove-haskell: 'true'
+
+    - name: Configurar Entorno de Compilación
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev
+
+    - name: Descargar herramientas de Google (Repo)
+      run: |
+        mkdir -p ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+
+    - name: Descargar Base de Android (TWRP 12.1 Manifest)
+      run: |
+        export PATH=~/bin:$PATH
+        mkdir ~/twrp && cd ~/twrp
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
+        repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+
+    - name: Descargar tus planos unificados desde tu GitHub
+      uses: actions/checkout@v3
+      with:
+        path: ~/twrp/workspace_planos
+
+    - name: Acomodar planos en la estructura de compilación
+      run: |
+        # Movemos el árbol del dispositivo y el común a las rutas que el compilador espera
+        cp -r ~/twrp/workspace_planos/device/tecno ~/twrp/device/
+        cp -r ~/twrp/workspace_planos/device/transsion ~/twrp/device/
+        # Limpiamos la carpeta temporal para liberar espacio
+        rm -rf ~/twrp/workspace_planos
+
+    - name: ¡Destilar y Compilar el archivo TWRP.img!
+      run: |
+        export PATH=~/bin:$PATH
+        cd ~/twrp
+        export ALLOW_MISSING_DEPENDENCIES=true
+        source build/envsetup.sh
+        lunch twrp_TECNO-LG7n-eng || true
+        make bootimage -j$(nproc --all)
+
+    - name: Subir el archivo final listo para descargar
+      uses: actions/upload-artifact@v3
+      with:
+        name: TWRP_Tecno_Pova4_Listo
+        path: ~/twrp/out/target/product/TECNO-LG7n/*.img
